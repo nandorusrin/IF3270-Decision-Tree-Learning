@@ -72,12 +72,6 @@ class C45:
       
       return created_node
 
-    for col in X.columns:
-      print('columns', col)
-      gain = self._compute_gain(X, y, col)
-      print('\tGain =', gain)
-      print()
-
   def _get_potential_breakpoints(self, sorted_col, sorted_target):
     sorted_target = list(sorted_target)
     idx_list = []
@@ -100,8 +94,32 @@ class C45:
     eright = right_proportion*self._compute_entropy(target[idx_cut+1:])
     return eleft + eright
 
+  def _unique(self, ar):
+    unique_list = list(set(ar))
+    counts = []
+    for u in unique_list:
+      counts.append(ar.count(u))
+    
+    return unique_list, counts
+  
+  def _get_common_target_values(self, training_samples, target_values):
+    retval = {}
+    klass, counts = np.unique(target_values, return_counts=True)
+    for k in klass:
+      filtered_klass_idx = target_values.loc[target_values == k].index
+      
+      for col in training_samples.columns:
+        filtered_samples = (training_samples[col])[filtered_klass_idx]
+        attr_val, count_val = self._unique(list(filtered_samples))
+
+        if col not in retval:
+          retval[col] = {}
+        retval[col][k] = attr_val[np.argmax(count_val)]
+
+    return retval
+
   def fit(self, X, y):
-    # handle continuous variable
+    # handle continuous values
     continu_features = X.select_dtypes(include='number')
     for col in continu_features.columns:
       sorted_feature = continu_features[col].sort_values()
@@ -121,13 +139,21 @@ class C45:
 
       smaller, greater = '<= ' + str(best_breakpoint), '> ' + str(best_breakpoint)
       X.loc[:, col] = X[col].apply(lambda x: smaller if x <= best_breakpoint else greater)
-      
+    
+    # handle missing values
+    common_target_values = self._get_common_target_values(X, y)
+    cols_list = [col for col in X.columns]
+    for idx, row in X.iterrows():
+      for c in cols_list:
+        if pd.isna(row[c]):
+          X.loc[idx, c] = common_target_values[c][y[idx]]
+    
     self._tree = self._construct_tree(X, y)
     self._tree.printTree()
     
 
 # df = pd.read_csv('play-tennis.csv')
-df = pd.read_csv('sabtusore-num.csv')
+df = pd.read_csv('sabtusore-missing.csv')
 headers = list(df.columns[1:])
 feature_names, target_names = headers[:-1], headers[-1]
 
