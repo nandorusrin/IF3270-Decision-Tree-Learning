@@ -47,7 +47,7 @@ class Tree:
         self.targetCount.append((maxLabel, sum))
         self.children.clear()
 
-    def printTree(self):
+    def printTree(self, level=1):
 
         print(self.value, self.targetCount, end="")
         if(self.entropy):
@@ -55,8 +55,8 @@ class Tree:
         else:
             print()
         for t in self.children:
-            print('\t', t[0], ' -> ', end="")
-            t[1].printTree()
+            print('\t'*level, t[0], ' -> ', end="")
+            t[1].printTree(level+1)
 
 
 testTree = Tree('Outlook', (('+', 10), ('-', 9)))
@@ -67,7 +67,7 @@ yesHumidity = Tree('Yes', (('+', 4), ('-', 0)))
 humidity.addChildren('High', noHumidity)
 humidity.addChildren('Normal', yesHumidity)
 testTree.addChildren('Sunny', humidity)
-testTree.printTree()
+# testTree.printTree()
 
 '''contoh tree :
     Outlook(('+',10), ('-',9))
