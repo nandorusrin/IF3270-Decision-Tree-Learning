@@ -1,54 +1,91 @@
 import math
 import pandas as pd
+import numpy as np
+import Tree
 
-'''
-I.S	: Seluruh dataset (S), label yang akan dihitung (LABEL), list data yang dihitung(L)
-F.S	: floating point ENTROPY dari data yang dihitung
-'''
-def entropy(S, label, L = None):
+class Id3:
+  def __init__(self):
+    super().__init__()
 
-	distinctValue = list(set(S[label]))
-	result = 0.0
-	newS = S
+  '''
+  I.S	: List of label (target_values)
+  F.S	: floating point ENTROPY dari data yang dihitung
+  '''
+  def _compute_entropy(self, target_values):
+    unique, counts = np.unique(target_values, return_counts=True)
+    y_len = len(target_values)
+    
+    result = 0.0
+    e = lambda a : (a/y_len*math.log2(a/y_len))
+    for c in counts:
+      result += e(c)
 
-	if (L != None):
-		newS = pd.DataFrame(S.columns)
-		newS = S.iloc[L, :]
+    return result*(-1)
+  
+  def _compute_attr_entropy(self, training_samples, target_values, attr):
+    Ea = 0.0
+    ts_len = len(training_samples)
+    
+    for val in training_samples[attr].value_counts().reset_index().values:
+      val_name = val[0]; val_count = val[1]
+      filtered_idx = training_samples.loc[training_samples[attr] == val_name].index
+      Ea += (val_count/ts_len)*self._compute_entropy(target_values[filtered_idx])
 
-	for i in distinctValue:
-		p = countValue(newS, label, i)/len(newS)
-		result += p * math.log2(p)
+    return Ea
+  
+  def _construct_tree(self, training_samples, target_values):
+    root = self._build_tree_rec(training_samples, target_values)
+    return root
+  
+  def _build_tree_rec(self, training_samples, target_values):
+    # check if it's should become leaf node
+    if target_values.nunique() == 1:
+      label = target_values.iloc[0]
+      target_count = [(label, len(target_values))]
+      
+      created_node = Tree.Tree(label, target_count)
+      created_node.setEntropy = self._compute_entropy(target_values)
+      return created_node
+    else:
+      best_gain, best_attr = 0.0, ''
+      Es = self._compute_entropy(target_values)
 
-	return -1 * result
+      for attr in training_samples.columns:
+        Ea = self._compute_attr_entropy(training_samples, target_values, attr)
+        gain = Es - Ea
+        if gain > best_gain:
+          best_attr = attr
+          best_gain = gain
+      
+      target_count = []
+      val_names = []
+      for val in training_samples[best_attr].value_counts().reset_index().values:
+        val_name = val[0]; val_count = val[1]
+        val_names.append(val_name)
+        target_count.append((val_name, val_count))
 
-'''
-I.S	: Seluruh dataset (S), hitungan dengan acuan pada atribut tertentu (ATTRIBUTE), dengan nilai tertentu (VALUE)
-F.S	: banyak instance dengan ATTRIBUTE dengan nilai VALUE
-'''
+      created_node = Tree.Tree(best_attr, target_count)
+      created_node.setEntropy(Ea)
 
-def countValue(S, attribute, value):
-	count = 0
-	totalInstance = len(S)
-	for i in range(0, totalInstance, 1):
-		if (S[attribute].values[i] == value):
-			count += 1
-	return count
+      for val_name in val_names:
+        filtered_training_samples = training_samples.loc[training_samples[best_attr] == val_name]
+        filtered_target_values = target_values[filtered_training_samples.index]
 
-def gain(S, L, A):
+        created_node.addChildren(val_name, self._build_tree_rec(filtered_training_samples, filtered_target_values))
+      
+      return created_node
 
-	sum = 0
-	for value in A:
-			sum += abs(value.count)/abs(S)* entropy(value.count)
-	return entropy(S) - sum
+  def fit(self, X, y):
+    self._tree = self._construct_tree(X, y)
+    self._tree.printTree()
 
-def ID3(examples, target_attribute, attributes):
-	#untuk semua examples, check positif semua atau gimana, kalo iya langsung return labelnya
-	#kalau atributnya kosong, return label dengan target_attribut mayoritas
+    return self
 
-	#kalau engga : hitung entropy->hitung entropy tiap attribute, hitung gain
-	#dari gain, tentuin leaf node nya, kalau example kosong, return target_attribut mayoritas, kalau masih ada, rekursif panggil ID3 lagi
-	pass
 
-dataTrain = pd.read_csv('play_tennis.csv')
+dataTrain = pd.read_csv('play-tennis.csv')
+headers = list(dataTrain.columns[1:])
+feature_names, target_names = headers[:-1], headers[-1]
+
 print(dataTrain)
-print(entropy(dataTrain, 'play'))
+clf = Id3()
+clf = clf.fit(dataTrain[feature_names], dataTrain[target_names])
