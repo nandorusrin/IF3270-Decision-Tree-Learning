@@ -2,7 +2,7 @@ import pandas as pd
 import Tree
 import math
 import numpy as np
-
+pd.options.mode.chained_assignment = None
 
 class C45:
   def __init__(self):
@@ -78,14 +78,56 @@ class C45:
       print('\tGain =', gain)
       print()
 
+  def _get_potential_breakpoints(self, sorted_col, sorted_target):
+    sorted_target = list(sorted_target)
+    idx_list = []
+    breakpoints_list = []
+    last_label = sorted_target[0]
+    for i in range(1, len(sorted_target)):
+      if sorted_target[i] != last_label:
+        idx_list.append(i-1)
+        breakpoints_list.append((sorted_col[i]+sorted_col[i-1])*0.5)
+        last_label = sorted_target[i]
+    
+    return idx_list, breakpoints_list
+  
+  def _compute_entropy_continuous(self, feature, target, idx_cut):
+    sample_len = len(target)
+    left_proportion = (idx_cut + 1) / sample_len
+    right_proportion = (sample_len - (idx_cut + 1)) / sample_len
+    
+    eleft = left_proportion*self._compute_entropy(target[:idx_cut+1]) 
+    eright = right_proportion*self._compute_entropy(target[idx_cut+1:])
+    return eleft + eright
 
   def fit(self, X, y):
+    # handle continuous variable
+    continu_features = X.select_dtypes(include='number')
+    for col in continu_features.columns:
+      sorted_feature = continu_features[col].sort_values()
+      sorted_target = y[sorted_feature.index]
+      
+      potential_idx_list, breakpoints_list = self._get_potential_breakpoints(sorted_feature, sorted_target)
+      Es_con = self._compute_entropy(sorted_target)
+
+      best_breakpoint = 0
+      best_gain = 0.0
+      for i in range(len(potential_idx_list)):
+        idx_cut = potential_idx_list[i]
+        gain = Es_con - self._compute_entropy_continuous(sorted_feature, sorted_target, idx_cut)
+        if gain > best_gain:
+          best_gain = gain
+          best_breakpoint = breakpoints_list[i]
+
+      smaller, greater = '<= ' + str(best_breakpoint), '> ' + str(best_breakpoint)
+      X.loc[:, col] = X[col].apply(lambda x: smaller if x <= best_breakpoint else greater)
+      
     self._tree = self._construct_tree(X, y)
     self._tree.printTree()
     
 
 # df = pd.read_csv('play-tennis.csv')
-df = pd.read_csv('sabtusore.csv')
+df = pd.read_csv('sabtusore-num.csv')
 headers = list(df.columns[1:])
 feature_names, target_names = headers[:-1], headers[-1]
 
