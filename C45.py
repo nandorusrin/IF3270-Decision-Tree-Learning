@@ -29,6 +29,16 @@ class C45:
       Ea += (val_count/ts_len)*self._compute_entropy(target_values[filtered_idx])
 
     return Ea
+  
+  def _compute_split_information(self, training_samples, target_values, attr):
+    result = 0.0
+    ts_len = len(training_samples)
+
+    for val in training_samples[attr].value_counts().reset_index().values:
+      p = val[1]/ts_len
+      result += p * math.log2(p)
+    
+    return result * (-1)
 
   def _construct_tree(self, training_samples, target_values):
     root = self._build_tree_rec(training_samples, target_values)
@@ -45,15 +55,27 @@ class C45:
       return created_node
     else:
       best_gain, best_attr = 0.0, ''
+      best_gain_ratio, best_attr_by_gain_ratio = 0.0, ''
       Es = self._compute_entropy(target_values)
 
       for attr in training_samples.columns:
         Ea = self._compute_attr_entropy(training_samples, target_values, attr)
         gain = Es - Ea
+        split_information = self._compute_split_information(training_samples, target_values, attr)
+        gainratio = (gain / split_information) if (split_information > 0) else 0
         if gain > best_gain:
           best_attr = attr
           best_gain = gain
+        if gainratio > best_gain_ratio:
+          best_gain_ratio = gainratio
+          best_attr_by_gain_ratio = attr
       
+      print('gain', gain)
+      print('best', best_attr)
+      print('gainration', best_gain_ratio)
+      print('best gainratio',  best_attr_by_gain_ratio)
+      print()
+
       target_count = []
       val_names = []
       for val in training_samples[best_attr].value_counts().reset_index().values:
