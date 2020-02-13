@@ -5,7 +5,8 @@ import numpy as np
 pd.options.mode.chained_assignment = None
 
 class C45:
-  def __init__(self):
+  def __init__(self, gain_ratio=False):
+    self.gain_ratio = gain_ratio
     super().__init__()
   
   def _compute_entropy(self, target_values):
@@ -54,7 +55,7 @@ class C45:
       created_node.setEntropy = self._compute_entropy(target_values)
       return created_node
     else:
-      best_gain, best_attr = 0.0, ''
+      best_gain, best_attr_by_gain = 0.0, ''
       best_gain_ratio, best_attr_by_gain_ratio = 0.0, ''
       Es = self._compute_entropy(target_values)
 
@@ -64,17 +65,16 @@ class C45:
         split_information = self._compute_split_information(training_samples, target_values, attr)
         gainratio = (gain / split_information) if (split_information > 0) else 0
         if gain > best_gain:
-          best_attr = attr
+          best_attr_by_gain = attr
           best_gain = gain
         if gainratio > best_gain_ratio:
           best_gain_ratio = gainratio
           best_attr_by_gain_ratio = attr
       
-      print('gain', gain)
-      print('best', best_attr)
-      print('gainration', best_gain_ratio)
-      print('best gainratio',  best_attr_by_gain_ratio)
-      print()
+      if (self.gain_ratio):
+        best_attr = best_attr_by_gain_ratio
+      else:
+        best_attr = best_attr_by_gain
 
       target_count = []
       val_names = []
