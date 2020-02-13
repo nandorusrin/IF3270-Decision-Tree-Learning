@@ -42,11 +42,12 @@ class Tree:
     return found
   def checkChildrenValueSatisfy(self,attributeValue):
     found = False
-    for c in self.children:
-        string = str(c[0]) + str(attributeValue)
-        if eval(string):
-            found = True
-            break 
+    if(attributeValue[0]=='<' or attributeValue[0]=='>' or attributeValue[0]=='='):
+      for c in self.children:
+          string = str(c[0]) + str(attributeValue)
+          if eval(string):
+              found = True
+              break 
     return found
 
   def gotoMaxChildrenCount(self):

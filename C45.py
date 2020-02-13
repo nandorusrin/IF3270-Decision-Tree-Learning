@@ -9,7 +9,9 @@ class C45:
     def __init__(self, gain_ratio=False):
         self.gain_ratio = gain_ratio
         super().__init__()
-
+    
+    def get_accuracy(self):
+        return self._accuracy
     def _compute_entropy(self, target_values):
         unique, counts = np.unique(target_values, return_counts=True)
         y_len = len(target_values)
@@ -136,6 +138,17 @@ class C45:
 
         return unique_list, counts
 
+    def _train_test_split(self, X, y, test_size=0.2):
+        sample_len = len(y)
+        cut_idx = int(sample_len*test_size)
+        X_test = pd.DataFrame(X.columns)
+        X_test = X.iloc[:cut_idx, :]
+        y_test = y.iloc[:cut_idx]
+        X = X.iloc[cut_idx:, :]
+        y = y.iloc[cut_idx:]
+        
+        return X, X_test, y, y_test
+
     def _get_common_target_values(self, training_samples, target_values):
         retval = {}
         klass, counts = np.unique(target_values, return_counts=True)
@@ -162,9 +175,27 @@ class C45:
 
         return count_true / len(validation_target)
 
+    def predict(self, X):
+        return self._predict(X)
+    def _train_test_split(self, X, y, test_size=0.2):
+        sample_len = len(y)
+        cut_idx = int(sample_len*test_size)
+        X_test = pd.DataFrame(X.columns)
+        X_test = X.iloc[:cut_idx, :]
+        y_test = y.iloc[:cut_idx]
+        X = X.iloc[cut_idx:, :]
+        y = y.iloc[cut_idx:]
+        
+        return X, X_test, y, y_test
     def fit(self, X, y):
         # handle continuous values
+        X, X_test, y, y_test = self._train_test_split(X, y)
+
+        self._tree = self._construct_tree(X, y)
+        self._tree.printTree()
+        self._accuracy = self._compute_accuracy(X_test, y_test)
         continu_features = X.select_dtypes(include='number')
+        
         for col in continu_features.columns:
             sorted_feature = continu_features[col].sort_values()
             sorted_target = y[sorted_feature.index]
@@ -237,7 +268,7 @@ headers = list(dataTrain.columns[1:])
 feature_names, target_names = headers[:-1], headers[-1]
 
 clf = C45()
-clf = clf.fit(dataTrain[feature_names], dataTrain[target_names])
+clf.fit(dataTrain[feature_names], dataTrain[target_names])
 print('akurasi:', clf.get_accuracy())
 
 newData = pd.read_csv('play-tennis-predict.csv')
