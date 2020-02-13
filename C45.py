@@ -172,6 +172,28 @@ class C45:
     
     self._tree = self._construct_tree(X, y)
     self._tree.printTree()
+
+  def _predict(self, X):
+    ret = []
+    err = False
+    for i, row in X.iterrows():
+      node = self._tree
+      depth = 0
+      while (len(node.children) > 0): # node still inner node
+        if node.checkChildrenValueExist(row[node.value]) or node.checkChildrenValueSatisfy(row[node.value]):
+          node = node.gotoSpesificChildren(row[node.value])
+        else:
+          node = node.gotoMaxChildrenCount()
+
+        if node == None:
+          err = True
+          break
+        depth += 1
+      if err:
+        break
+      
+      ret.append(node.value)
+    return ret
     
 
 # df = pd.read_csv('play-tennis.csv')
