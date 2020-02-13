@@ -1,11 +1,12 @@
 class Tree:
 
-  def __init__(self, value, targetCount):
+  def __init__(self, value, targetCount, numeric_node=False):
     self.value = value
     # kalau inner node, value itu attribute, kalau  leaf node, value itu prediksi
     self.targetCount = targetCount
     self.entropy = 0
     self.children = []
+    self.numeric_node = numeric_node
     # format target count : (label, jumlah), contoh : ('+',10)
 
   def getValue(self):
@@ -40,15 +41,6 @@ class Tree:
         break
     
     return found
-  def checkChildrenValueSatisfy(self,attributeValue):
-    found = False
-    if(attributeValue[0]=='<' or attributeValue[0]=='>' or attributeValue[0]=='='):
-      for c in self.children:
-          string = str(c[0]) + str(attributeValue)
-          if eval(string):
-              found = True
-              break 
-    return found
 
   def gotoMaxChildrenCount(self):
     idx = -1
@@ -61,10 +53,20 @@ class Tree:
     return self.children[idx][1]
 
   def gotoSpesificChildren(self, attributeValue):
-    for c in self.children:
-      if c[0] == attributeValue:
-        return c[1]
-    
+    if self.numeric_node:
+      if self.value[:2] == '<=':
+        if eval(str(attributeValue) + self.value):
+          return self.children[0][1]
+        return self.children[1][1]
+      else:
+        if eval(str(attributeValue) + self.value):
+          return self.children[1][1]
+        return self.children[0][1]
+    else:
+      for c in self.children:
+        if c[0] == attributeValue:
+          return c[1]
+      
     return None
       
 

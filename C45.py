@@ -2,6 +2,7 @@ import pandas as pd
 import Tree
 import math
 import numpy as np
+from sklearn import datasets
 pd.options.mode.chained_assignment = None
 
 
@@ -35,6 +36,8 @@ class C45:
             val_count = val[1]
             filtered_idx = training_samples.loc[training_samples[attr]
                                                 == val_name].index
+            # print('bruh')
+            # print(filtered_idx)
             Ea += (val_count/ts_len) * \
                 self._compute_entropy(target_values[filtered_idx])
 
@@ -83,6 +86,18 @@ class C45:
                     best_gain_ratio = gainratio
                     best_attr_by_gain_ratio = attr
 
+            # gain or gain_ration = 0, then create a leaf
+            if ((not self.gain_ratio and best_gain == 0) or (self.gain_ratio and best_gain_ratio == 0)):
+                # poll the label
+                klass, counts = np.unique(target_values, return_counts=True)
+                label = klass[np.argmax(counts)]
+                target_count = []
+                for idx_k in range(len(klass)):
+                    target_count.append((klass[idx_k], counts[idx_k]))
+                created_node = Tree.Tree(label, target_count)
+                created_node.setEntropy = self._compute_entropy(target_values)
+                return created_node
+
             if (self.gain_ratio):
                 best_attr = best_attr_by_gain_ratio
             else:
@@ -98,6 +113,8 @@ class C45:
 
             created_node = Tree.Tree(best_attr, target_count)
             created_node.setEntropy(Ea)
+            if best_attr in self._continuous_columns:
+                created_node.numeric_node = True
 
             for val_name in val_names:
                 filtered_training_samples = training_samples.loc[training_samples[best_attr] == val_name]
@@ -116,7 +133,7 @@ class C45:
         for i in range(1, len(sorted_target)):
             if sorted_target[i] != last_label:
                 idx_list.append(i-1)
-                breakpoints_list.append((sorted_col[i]+sorted_col[i-1])*0.5)
+                breakpoints_list.append((sorted_col.iloc[i]+sorted_col.iloc[i-1])*0.5)
                 last_label = sorted_target[i]
 
         return idx_list, breakpoints_list
@@ -191,12 +208,9 @@ class C45:
         # handle continuous values
         X, X_test, y, y_test = self._train_test_split(X, y)
 
-        self._tree = self._construct_tree(X, y)
-        self._tree.printTree()
-        self._accuracy = self._compute_accuracy(X_test, y_test)
         continu_features = X.select_dtypes(include='number')
-        
-        for col in continu_features.columns:
+        self._continuous_columns = continu_features.columns
+        for col in self._continuous_columns:
             sorted_feature = continu_features[col].sort_values()
             sorted_target = y[sorted_feature.index]
 
@@ -220,6 +234,8 @@ class C45:
             X.loc[:, col] = X[col].apply(
                 lambda x: smaller if x <= best_breakpoint else greater)
 
+        # print(X, y)
+
         # handle missing values
         common_target_values = self._get_common_target_values(X, y)
         cols_list = [col for col in X.columns]
@@ -229,7 +245,10 @@ class C45:
                     X.loc[idx, c] = common_target_values[c][y[idx]]
 
         self._tree = self._construct_tree(X, y)
-        self._tree.printTree()
+        print('tree constructed')
+        self._accuracy = self._compute_accuracy(X_test, y_test)
+
+        return self
 
     def _predict(self, X):
         ret = []
@@ -238,7 +257,7 @@ class C45:
             node = self._tree
             depth = 0
             while (len(node.children) > 0):  # node still inner node
-                if node.checkChildrenValueExist(row[node.value]) or node.checkChildrenValueSatisfy(row[node.value]):
+                if node.checkChildrenValueExist(row[node.value]):
                     node = node.gotoSpesificChildren(row[node.value])
                 else:
                     node = node.gotoMaxChildrenCount()
@@ -263,16 +282,31 @@ class C45:
 # clf.fit(df[feature_names], df[target_names])
 
 
-dataTrain = pd.read_csv('play-tennis.csv')
-headers = list(dataTrain.columns[1:])
+# play tennis
+# dataTrain = pd.read_csv('play-tennis.csv')
+# headers = list(dataTrain.columns[1:])
+# feature_names, target_names = headers[:-1], headers[-1]
+
+# clf = C45()
+# clf.fit(dataTrain[feature_names], dataTrain[target_names])
+# print('akurasi:', clf.get_accuracy())
+
+# newData = pd.read_csv('play-tennis-predict.csv')
+# headers_new = list(newData.columns[1:])
+# feature_names_new, target_names_new = headers_new[:-1], headers_new[-1]
+
+# print(clf.predict(newData[feature_names_new]))
+
+# iris
+iris = datasets.load_iris()
+df = pd.DataFrame(data=iris.data, columns=iris.feature_names, index=[i for i in range(len(iris.data))])
+df['class'] = data=iris.target
+headers = list(df.columns)
 feature_names, target_names = headers[:-1], headers[-1]
-
+# y = pd.DataFrame(, columns=['class'], index=[i for i in range(len(iris.target))])
+# print(X)
+# print(y)
 clf = C45()
-clf.fit(dataTrain[feature_names], dataTrain[target_names])
+clf = clf.fit(df[feature_names], df[target_names])
+
 print('akurasi:', clf.get_accuracy())
-
-newData = pd.read_csv('play-tennis-predict.csv')
-headers_new = list(newData.columns[1:])
-feature_names_new, target_names_new = headers_new[:-1], headers_new[-1]
-
-print(clf.predict(newData[feature_names_new]))
